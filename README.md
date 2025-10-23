@@ -11,6 +11,48 @@
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
+## Gestion des Comptes - Banque
+
+### Fonctionnalités Implémentées
+
+#### Lister tous les comptes (US 2.0)
+- **Endpoint**: `GET /api/v1/comptes`
+- **Authentification**: Bearer Token (Sanctum)
+- **Autorisation**:
+  - Admin: Peut voir tous les comptes
+  - Client: Peut voir uniquement ses comptes
+- **Filtres disponibles**:
+  - `type`: epargne, cheque
+  - `statut`: actif, bloque, ferme
+  - `search`: Recherche par titulaire ou numéro de compte
+- **Tri**:
+  - `sort`: dateCreation, solde, titulaire
+  - `order`: asc, desc
+- **Pagination**:
+  - `page`: Numéro de page (défaut: 1)
+  - `limit`: Éléments par page (défaut: 10, max: 100)
+
+#### Comptes Archivés
+La consultation des comptes Epargne archivés se fait à partir du cloud. Les données archivées sont stockées dans un système de stockage cloud séparé pour optimiser les performances et réduire les coûts de stockage local.
+
+### Sécurité
+- Middleware d'authentification Sanctum
+- Middleware de limitation de taux (RatingMiddleware) - 100 requêtes/heure par utilisateur
+- Soft deletes pour les comptes supprimés
+- Scope global pour exclure les comptes supprimés
+
+### Format de Réponse API
+Toutes les réponses suivent un format standardisé:
+```json
+{
+  "success": true,
+  "data": [...],
+  "pagination": {...},
+  "links": {...},
+  "message": "Message de succès"
+}
+```
+
 - [Simple, fast routing engine](https://laravel.com/docs/routing).
 - [Powerful dependency injection container](https://laravel.com/docs/container).
 - Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
