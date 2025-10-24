@@ -12,6 +12,18 @@ class CompteSeeder extends Seeder
      */
     public function run(): void
     {
-        //
+        $users = \App\Models\User::all();
+        $admin = $users->where('role', 'admin')->first();
+        $clients = $users->where('role', 'client');
+
+        \App\Models\Compte::factory(10)->create([
+            'user_id' => $admin->id,
+        ]);
+
+        foreach ($clients as $client) {
+            \App\Models\Compte::factory(2)->create([
+                'user_id' => $client->id,
+            ]);
+        }
     }
 }

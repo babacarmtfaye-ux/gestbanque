@@ -1,0 +1,17 @@
+<?php
+
+$token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJhMDJlZjgxZi00ZjQyLTQxMDEtODc5OS00MGRlMmNhY2ZjY2EiLCJqdGkiOiJlZWNjMDZhMGMzZTM3MmIyMzhmNTQ0OTg0NGNhMTVjNTkzZmFkMGIyNGVhMzM3ZmYyMzkyMDdlNzZiMzM0MTIyZjg1MGNlNDk3MDBhYzc4ZSIsImlhdCI6MTc2MTI0MDAzMC4zMjg0MTcsIm5iZiI6MTc2MTI0MDAzMC4zMjg0MiwiZXhwIjoxNzkyNzc2MDMwLjMxOTc1LCJzdWIiOiJmMWZmMWY2Ni03YjlmLTQwZTgtYmY2Mi02NTFhMzY4M2ExMjMiLCJzY29wZXMiOltdfQ.l9qplpzCtvh5oahiJuLG3Gocd7C89CwzpKFuPY3sUlbGdEX4-YDvu1HbqdZNyHAty9MvZqkXz-EdK2pEP-STiYeCEFUydfqmR9bdAgvDOitghYw_G8g5ESe7gVkMsP8FGsaSrbEj9QnUxMsO4PJ6JIEZ3U8YFIAjEvFvaAEo6IfX08Dqc7hR3-ZA5sApuq8TLzQ7xiESllx7B3HmGqGQABi7JDsjN2QYIpX9EwjrblwGwpiQcLXrMaN-JtMRPEZ3R_3uAMFpjQ7iMLQZ34k5DZ57lC19cZFqXmCLPFAWMmntiaAoysGxJiyBVgXr64IeCz-MLXbKfB4ax8zGeQS1MnQdK5566eLYSNDhxzPJE5RIiSLPySKcYsGgpMIBNKZiuGRDAhPjSK9NwLEpC4OjHof3sDYJdkSP0oGI_syH6IxMthAYo8HZqdqGUbYvhQwCMU3f2lPSzEzcN2VXaup1_ME1htqFc7EX5OhIqMJyeLucy_AQqcVt0ZYfWX7UlcryrN9E8XINcd3B7dYVfqzL_n8vrL4e5v-LJY904G8-X1PAqzqQnFE47Kpis83qYbINKlbDkJ0-1WvrhG2q_wn-DN93Jdcp2oQ5sE4-ZjyIHgj7t-hlBjE3OLJb4OwLlw-x_pZ2XOb7Ij1NAF-Xtn7DSdoVbf9hmmfuFv3DjKU0GoU';
+
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, 'http://localhost:8000/api/v1/comptes');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'Authorization: Bearer ' . $token,
+    'Accept: application/json'
+]);
+$response = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+echo "HTTP Code: $httpCode\n";
+echo "Response: $response\n";

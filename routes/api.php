@@ -19,8 +19,13 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-// Groupe API v1
-Route::prefix('v1')->middleware(['auth:sanctum', 'rating'])->group(function () {
+// Auth routes
+Route::post('/login', [App\Http\Controllers\AuthController::class, 'login']);
+Route::middleware('auth:sanctum')->post('/logout', [App\Http\Controllers\AuthController::class, 'logout']);
+Route::middleware('auth:sanctum')->get('/me', [App\Http\Controllers\AuthController::class, 'user']);
+
+// API v1 routes
+Route::prefix('v1')->middleware(['auth:api', 'rating', 'logging'])->group(function () {
     /**
      * Lister tous les comptes
      *
@@ -36,5 +41,14 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'rating'])->group(function () {
      * - sort: Tri (dateCreation, solde, titulaire)
      * - order: Ordre (asc, desc)
      */
-    Route::get('/comptes', [CompteController::class, 'index']);
+    Route::get('/comptes', [App\Http\Controllers\CompteController::class, 'index'])
+        ->name('comptes.index');
+
+    /**
+     * Créer un nouveau compte
+     *
+     * Crée un compte bancaire avec vérification client automatique
+     */
+    Route::post('/comptes', [App\Http\Controllers\CompteController::class, 'store'])
+        ->name('comptes.store');
 });

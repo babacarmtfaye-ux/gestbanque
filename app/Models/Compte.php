@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Scopes\NonDeletedScope;
+use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Compte extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasUuid;
 
     protected $fillable = [
         'numeroCompte',
@@ -49,7 +50,23 @@ class Compte extends Model
     public function scopeClient($query, $telephone)
     {
         return $query->whereHas('user', function ($q) use ($telephone) {
-            $q->where('phone', $telephone); // Assuming phone field exists in users table
+            $q->where('email', $telephone); // Using email as telephone for simplicity
         });
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class, 'compte_id');
+    }
+
+    /**
+     * Attribut personnalisé pour le solde calculé
+     */
+    public function getSoldeAttribute()
+    {
+        $debits = $this->transactions()->where('type', 'depot')->sum('montant');
+        $credits = $this->transactions()->where('type', 'retrait')->sum('montant');
+
+        return $debits - $credits;
     }
 }

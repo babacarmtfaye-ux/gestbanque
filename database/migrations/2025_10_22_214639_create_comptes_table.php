@@ -9,19 +9,24 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('comptes', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('numeroCompte')->unique();
             $table->string('titulaire');
             $table->enum('type', ['epargne', 'cheque']);
             $table->decimal('solde', 15, 2)->default(0);
-            $table->string('devise', 3)->default('FCFA');
+            $table->string('devise');
             $table->timestamp('dateCreation');
             $table->enum('statut', ['actif', 'bloque', 'ferme'])->default('actif');
             $table->text('motifBlocage')->nullable();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->uuid('user_id');
             $table->json('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
+
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->index('user_id');
+            $table->index('type');
+            $table->index('statut');
         });
     }
 

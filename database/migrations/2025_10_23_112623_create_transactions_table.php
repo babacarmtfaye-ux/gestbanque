@@ -12,8 +12,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('transactions', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
+            $table->uuid('compte_id');
+            $table->enum('type', ['depot', 'retrait']);
+            $table->decimal('montant', 15, 2);
+            $table->string('description')->nullable();
             $table->timestamps();
+
+            $table->foreign('compte_id')->references('id')->on('comptes')->onDelete('cascade');
+            $table->index('type');
+            $table->index('compte_id');
         });
     }
 
@@ -22,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('transactions');
+        Schema::dropIfExists('comptes');
     }
 };

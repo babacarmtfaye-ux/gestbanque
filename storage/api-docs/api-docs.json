@@ -1,0 +1,419 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "API Gestion de Banque",
+        "description": "API pour la gestion des comptes bancaires",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000/api/v1",
+            "description": "Serveur de développement"
+        }
+    ],
+    "paths": {
+        "/comptes": {
+            "get": {
+                "tags": [
+                    "Comptes"
+                ],
+                "summary": "Lister tous les comptes",
+                "description": "Récupère la liste de tous les comptes avec pagination et filtres. L'admin voit tous les comptes, le client voit uniquement ses comptes.",
+                "operationId": "getComptes",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Numéro de page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Nombre d'éléments par page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 10,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Filtrer par type de compte",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "epargne",
+                                "cheque"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "statut",
+                        "in": "query",
+                        "description": "Filtrer par statut",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "actif",
+                                "bloque",
+                                "ferme"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Recherche par titulaire ou numéro de compte",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Champ de tri",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "dateCreation",
+                                "solde",
+                                "titulaire"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "order",
+                        "in": "query",
+                        "description": "Ordre de tri",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste des comptes récupérée avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiResponse"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#/components/schemas/ComptesPaginatedResponse"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Non autorisé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Non autorisé"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Accès interdit",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Accès interdit"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur interne du serveur",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Erreur interne du serveur"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "ApiResponse": {
+                "title": "ApiResponse",
+                "description": "Réponse standardisée de l'API",
+                "properties": {
+                    "success": {
+                        "title": "Succès",
+                        "description": "Indique si la requête a réussi",
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "message": {
+                        "title": "Message",
+                        "description": "Message de réponse",
+                        "type": "string",
+                        "example": "Liste des comptes récupérée avec succès"
+                    },
+                    "data": {
+                        "title": "Données",
+                        "description": "Données de réponse",
+                        "type": "object"
+                    }
+                },
+                "type": "object",
+                "xml": {
+                    "name": "ApiResponse"
+                }
+            },
+            "Compte": {
+                "title": "Compte",
+                "description": "Modèle de compte bancaire",
+                "properties": {
+                    "id": {
+                        "title": "ID",
+                        "description": "Identifiant unique du compte",
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "cdd0fb4a-57f9-4ec1-918b-0614a106fcbc"
+                    },
+                    "numeroCompte": {
+                        "title": "Numéro de compte",
+                        "description": "Numéro unique du compte",
+                        "type": "string",
+                        "example": "C4416289"
+                    },
+                    "titulaire": {
+                        "title": "Titulaire",
+                        "description": "Nom du titulaire du compte",
+                        "type": "string",
+                        "example": "Bertrand McDermott"
+                    },
+                    "type": {
+                        "title": "Type",
+                        "description": "Type de compte",
+                        "type": "string",
+                        "enum": [
+                            "epargne",
+                            "cheque"
+                        ],
+                        "example": "epargne"
+                    },
+                    "solde": {
+                        "title": "Solde",
+                        "description": "Solde du compte",
+                        "type": "number",
+                        "format": "float",
+                        "example": 1230440.73
+                    },
+                    "devise": {
+                        "title": "Devise",
+                        "description": "Devise du compte",
+                        "type": "string",
+                        "example": "FCFA"
+                    },
+                    "dateCreation": {
+                        "title": "Date de création",
+                        "description": "Date de création du compte",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-10-04T21:45:44.000000Z"
+                    },
+                    "statut": {
+                        "title": "Statut",
+                        "description": "Statut du compte",
+                        "type": "string",
+                        "enum": [
+                            "actif",
+                            "bloque",
+                            "ferme"
+                        ],
+                        "example": "bloque"
+                    },
+                    "motifBlocage": {
+                        "title": "Motif de blocage",
+                        "description": "Motif de blocage du compte (si applicable)",
+                        "type": "string",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "metadata": {
+                        "title": "Métadonnées",
+                        "description": "Informations supplémentaires sur le compte",
+                        "properties": {
+                            "derniereModification": {
+                                "type": "string",
+                                "format": "date-time",
+                                "example": "2025-10-23T16:09:44.000000Z"
+                            },
+                            "version": {
+                                "type": "integer",
+                                "example": 1
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object",
+                "xml": {
+                    "name": "Compte"
+                }
+            },
+            "ComptesPaginatedResponse": {
+                "title": "ComptesPaginatedResponse",
+                "description": "Réponse paginée pour la liste des comptes",
+                "properties": {
+                    "data": {
+                        "title": "Données",
+                        "description": "Liste des comptes",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Compte"
+                        }
+                    },
+                    "pagination": {
+                        "$ref": "#/components/schemas/PaginationMeta"
+                    },
+                    "links": {
+                        "title": "Liens",
+                        "description": "Liens de navigation",
+                        "properties": {
+                            "self": {
+                                "type": "string",
+                                "example": "http://localhost:8000/api/v1/comptes?page=1"
+                            },
+                            "next": {
+                                "type": "string",
+                                "example": "http://localhost:8000/api/v1/comptes?page=2"
+                            },
+                            "first": {
+                                "type": "string",
+                                "example": "http://localhost:8000/api/v1/comptes?page=1"
+                            },
+                            "last": {
+                                "type": "string",
+                                "example": "http://localhost:8000/api/v1/comptes?page=2"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object",
+                "xml": {
+                    "name": "ComptesPaginatedResponse"
+                }
+            },
+            "PaginationMeta": {
+                "title": "PaginationMeta",
+                "description": "Métadonnées de pagination",
+                "properties": {
+                    "currentPage": {
+                        "title": "Page actuelle",
+                        "description": "Numéro de la page actuelle",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "totalPages": {
+                        "title": "Nombre total de pages",
+                        "description": "Nombre total de pages disponibles",
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "totalItems": {
+                        "title": "Nombre total d'éléments",
+                        "description": "Nombre total d'éléments dans la collection",
+                        "type": "integer",
+                        "example": 18
+                    },
+                    "itemsPerPage": {
+                        "title": "Éléments par page",
+                        "description": "Nombre d'éléments par page",
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "hasNext": {
+                        "title": "Page suivante disponible",
+                        "description": "Indique s'il y a une page suivante",
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "hasPrevious": {
+                        "title": "Page précédente disponible",
+                        "description": "Indique s'il y a une page précédente",
+                        "type": "boolean",
+                        "example": false
+                    }
+                },
+                "type": "object",
+                "xml": {
+                    "name": "PaginationMeta"
+                }
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Comptes",
+            "description": "Comptes"
+        }
+    ]
+}
