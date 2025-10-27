@@ -12,6 +12,36 @@ class Authenticate extends Middleware
      */
     protected function redirectTo(Request $request): ?string
     {
-        return $request->expectsJson() ? null : route('login');
+        // Pour les API, on ne redirige pas, on retourne null pour laisser Laravel gérer l'erreur 401
+        if ($request->is('api/*') || $request->expectsJson()) {
+            return null;
+        }
+
+        return route('login');
+    }
+
+    /**
+     * Handle an unauthenticated user.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  array  $guards
+     * @return void
+     *
+     * @throws \Illuminate\Auth\AuthenticationException
+     */
+    protected function unauthenticated($request, array $guards)
+    {
+        if ($request->is('api/*') || $request->expectsJson()) {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'Non autorisé',
+                'error' => [
+                    'code' => 'UNAUTHENTICATED',
+                    'message' => 'Token d\'authentification manquant ou invalide'
+                ]
+            ], 401));
+        }
+
+        parent::unauthenticated($request, $guards);
     }
 }
