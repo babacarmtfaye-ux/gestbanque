@@ -62,6 +62,37 @@ class Compte extends Model
         });
     }
 
+    /**
+     * Scope pour les comptes archivés
+     */
+    public function scopeArchives($query)
+    {
+        return $query->where('statut', 'archive');
+    }
+
+    /**
+     * Scope pour les comptes bloqués expirés
+     */
+    public function scopeBlockedExpired($query)
+    {
+        return $query->where('statut', 'bloque')
+                    ->where('dateDeblocagePrevue', '<', now());
+    }
+
+    /**
+     * Scope pour les comptes archivés expirés (prêts à être désarchivés)
+     */
+    public function scopeArchivedExpired($query)
+    {
+        return $query->where('statut', 'archive')
+                    ->whereNotNull('dateDeblocagePrevue')
+                    ->where('dateDeblocagePrevue', '<', now())
+                    ->where(function ($query) {
+                        $query->where('metadata->archivedReason', 'Blocage expiré automatiquement')
+                              ->orWhere('metadata->archivedReason', 'like', '%expiré%');
+                    });
+    }
+
     public function transactions()
     {
         return $this->hasMany(Transaction::class, 'compte_id');

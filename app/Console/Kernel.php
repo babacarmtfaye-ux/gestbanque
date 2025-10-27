@@ -12,7 +12,19 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Archiver les comptes bloqués expirés chaque jour à minuit
+        $schedule->job(new \App\Jobs\ArchiveExpiredBlockedAccounts)
+            ->daily()
+            ->name('archive-expired-blocked-accounts')
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        // Désarchiver les comptes bloqués expirés chaque jour à 1h du matin
+        $schedule->job(new \App\Jobs\UnarchiveExpiredBlockedAccounts)
+            ->dailyAt('01:00')
+            ->name('unarchive-expired-blocked-accounts')
+            ->withoutOverlapping()
+            ->runInBackground();
     }
 
     /**

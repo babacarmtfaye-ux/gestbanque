@@ -2,130 +2,331 @@
 
 namespace App\Http\Controllers;
 
+use App\Constants\Messages;
+use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 use Laravel\Passport\HasApiTokens;
 use App\Models\User;
 
+/**
+ * @OA\Info(
+ *     title="API Gestion de Banque - Authentification",
+ *     version="1.0.0",
+ *     description="API d'authentification pour la gestion des comptes bancaires"
+ * )
+ *
+ * @OA\Server(
+ *     url="http://localhost:8000/api/v1",
+ *     description="Serveur de développement"
+ * )
+ *
+ * @OA\SecurityScheme(
+ *     securityScheme="bearerAuth",
+ *     type="http",
+ *     scheme="bearer",
+ *     bearerFormat="JWT"
+ * )
+ */
 class AuthController extends Controller
 {
-    use HasApiTokens;
+    use HasApiTokens, ApiResponseTrait;
 
     /**
-     * Login user and create access token
+     * Authentifier un utilisateur et créer un token d'accès
+     *
+     * @OA\Post(
+     *     path="/auth/login",
+     *     summary="Connexion utilisateur",
+     *     description="Authentifie un utilisateur et retourne un token d'accès avec un refresh token",
+     *     operationId="login",
+     *     tags={"Authentification"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"email", "password"},
+     *             @OA\Property(property="email", type="string", format="email", example="user@example.com"),
+     *             @OA\Property(property="password", type="string", example="password123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Connexion réussie",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(property="token", type="string", example="eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."),
+     *                     @OA\Property(property="refresh_token", type="string", example="def50200..."),
+     *                     @OA\Property(
+     *                         property="user",
+     *                         type="object",
+     *                         @OA\Property(property="id", type="integer"),
+     *                         @OA\Property(property="name", type="string"),
+     *                         @OA\Property(property="email", type="string"),
+     *                         @OA\Property(property="role", type="string")
+     *                     )
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Identifiants invalides",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="error", type="object",
+     *                 @OA\Property(property="code", type="string", example="INVALID_CREDENTIALS"),
+     *                 @OA\Property(property="message", type="string", example="Email ou mot de passe incorrect")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Données de validation invalides",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="error", type="object",
+     *                 @OA\Property(property="code", type="string", example="VALIDATION_ERROR"),
+     *                 @OA\Property(property="message", type="string", example="Les données fournies sont invalides"),
+     *                 @OA\Property(property="details", type="object")
+     *             )
+     *         )
+     *     )
+     * )
      */
     public function login(Request $request)
     {
-        // Debug temporaire
-        \Log::info('Login attempt', [
-            'all_data' => $request->all(),
-            'json_data' => $request->json()->all(),
-            'input_email' => $request->input('email'),
-            'input_password' => $request->input('password'),
-            'is_json' => $request->isJson(),
-            'content_type' => $request->header('Content-Type'),
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string',
         ]);
 
-        // Pour les requêtes JSON, récupérer les données correctement
-        $rawContent = $request->getContent();
-        $jsonData = json_decode($rawContent, true) ?: [];
-
-        $email = $jsonData['email'] ?? null;
-        $password = $jsonData['password'] ?? null;
-
-        // Debug temporaire
-        \Log::info('Login data received', [
-            'email' => $email,
-            'password' => $password ? '***' : null,
-            'is_json' => $request->isJson(),
-            'content_type' => $request->header('Content-Type'),
-            'raw_content' => $rawContent,
-            'json_data' => $jsonData
-        ]);
-
-        // Validation manuelle pour les tests
-        if (empty($email) || empty($password)) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => [
-                    'email' => ['The email field is required.'],
-                    'password' => ['The password field is required.']
-                ]
-            ], 422);
-        }
-
-        // Validation
-        $validator = \Validator::make([
-            'email' => $email,
-            'password' => $password
-        ], [
-            'email' => ['required', 'email'],
-            'password' => ['required'],
-        ]);
-
-        if ($validator->fails()) {
-            \Log::info('Validation failed', $validator->errors()->toArray());
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $credentials = [
-            'email' => $email,
-            'password' => $password
-        ];
-
-        \Log::info('Attempting auth with credentials', ['email' => $credentials['email']]);
+        $credentials = $request->only('email', 'password');
 
         if (!Auth::attempt($credentials)) {
-            \Log::info('Auth failed for user', ['email' => $credentials['email']]);
-            return response()->json(['message' => 'Invalid credentials'], 400);
+            return $this->errorResponse(
+                'Email ou mot de passe incorrect',
+                [],
+                400,
+                'INVALID_CREDENTIALS'
+            );
         }
 
         $user = Auth::user();
-        \Log::info('Auth successful for user', ['email' => $user->email, 'id' => $user->id]);
 
-        // Create token via Passport
-        $token = $user->createToken('API Token')->accessToken;
+        // Créer le token d'accès avec les scopes appropriés
+        $scopes = $this->getUserScopes($user);
+        $token = $user->createToken('API Token', $scopes);
 
-        return response()->json([
-            'message' => 'Login successful',
-            'token' => $token,
-            'user' => $user
-        ], 200);
+        // Créer le refresh token
+        $refreshToken = $user->createToken('Refresh Token', ['refresh-token']);
+
+        // Stocker le token dans les cookies
+        $cookie = Cookie::make(
+            'access_token',
+            $token->accessToken,
+            60, // 1 heure
+            null,
+            null,
+            false, // httpOnly
+            true // secure (en production)
+        );
+
+        return $this->successResponse(
+            Messages::LOGIN_SUCCESS,
+            [
+                'token' => $token->accessToken,
+                'refresh_token' => $refreshToken->accessToken,
+                'token_type' => 'Bearer',
+                'expires_in' => 3600, // 1 heure en secondes
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'permissions' => $user->getPermissions(),
+                ],
+            ]
+        )->withCookie($cookie);
     }
 
     /**
-     * Return the authenticated user
+     * Obtenir les informations de l'utilisateur authentifié
+     *
+     * @OA\Get(
+     *     path="/auth/me",
+     *     summary="Informations utilisateur",
+     *     description="Retourne les informations de l'utilisateur actuellement authentifié",
+     *     operationId="getAuthenticatedUser",
+     *     tags={"Authentification"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Informations utilisateur récupérées",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(
+     *                         property="user",
+     *                         type="object",
+     *                         @OA\Property(property="id", type="integer"),
+     *                         @OA\Property(property="name", type="string"),
+     *                         @OA\Property(property="email", type="string"),
+     *                         @OA\Property(property="role", type="string"),
+     *                         @OA\Property(property="permissions", type="array", @OA\Items(type="string"))
+     *                     )
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Non authentifié",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *         )
+     *     )
+     * )
      */
     public function user(Request $request)
     {
-        return response()->json($request->user());
-    }
-
-    /**
-     * Logout (revoke all tokens)
-     */
-    public function logout(Request $request)
-    {
         $user = $request->user();
 
-        if ($user && $user->tokens()) {
-            $user->tokens()->delete();
-        }
-
-        return response()->json(['message' => 'Logout successful'], 200);
+        return $this->successResponse(
+            'Informations utilisateur récupérées',
+            [
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'permissions' => $user->getPermissions(),
+                ]
+            ]
+        );
     }
 
     /**
-     * Refresh access token (optional simulation)
+     * Rafraîchir le token d'accès
+     *
+     * @OA\Post(
+     *     path="/auth/refresh",
+     *     summary="Rafraîchir le token d'accès",
+     *     description="Utilise le refresh token pour obtenir un nouveau token d'accès",
+     *     operationId="refreshToken",
+     *     tags={"Authentification"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Token rafraîchi avec succès",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(property="token", type="string"),
+     *                     @OA\Property(property="refresh_token", type="string"),
+     *                     @OA\Property(property="token_type", type="string", example="Bearer"),
+     *                     @OA\Property(property="expires_in", type="integer", example=3600)
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Refresh token invalide",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Invalid refresh token")
+     *         )
+     *     )
+     * )
      */
     public function refresh(Request $request)
     {
-        return response()->json([
-            'message' => 'Token refreshed successfully',
-            'token' => $request->user()->createToken('API Token')->accessToken
-        ]);
+        $user = $request->user();
+
+        // Révoquer l'ancien token d'accès
+        $request->user()->token()->revoke();
+
+        // Créer un nouveau token d'accès
+        $scopes = $this->getUserScopes($user);
+        $token = $user->createToken('API Token', $scopes);
+
+        // Créer un nouveau refresh token
+        $refreshToken = $user->createToken('Refresh Token', ['refresh-token']);
+
+        // Mettre à jour le cookie
+        $cookie = Cookie::make(
+            'access_token',
+            $token->accessToken,
+            60, // 1 heure
+            null,
+            null,
+            false,
+            true
+        );
+
+        return $this->successResponse(
+            'Token rafraîchi avec succès',
+            [
+                'token' => $token->accessToken,
+                'refresh_token' => $refreshToken->accessToken,
+                'token_type' => 'Bearer',
+                'expires_in' => 3600,
+            ]
+        )->withCookie($cookie);
+    }
+
+    /**
+     * Déconnexion et révocation des tokens
+     *
+     * @OA\Post(
+     *     path="/auth/logout",
+     *     summary="Déconnexion",
+     *     description="Révoque tous les tokens de l'utilisateur et le déconnecte",
+     *     operationId="logout",
+     *     tags={"Authentification"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Déconnexion réussie",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(property="message", type="string", example="Déconnexion réussie")
+     *                 )
+     *             }
+     *         )
+     *     )
+     * )
+     */
+    public function logout(Request $request)
+    {
+        // Révoquer le token actuel
+        $request->user()->token()->revoke();
+
+        // Supprimer le cookie
+        $cookie = Cookie::forget('access_token');
+
+        return $this->successResponse('Déconnexion réussie')->withCookie($cookie);
+    }
+
+    /**
+     * Obtenir les scopes appropriés pour l'utilisateur
+     */
+    private function getUserScopes(User $user): array
+    {
+        $permissions = $user->getPermissions();
+
+        // Convertir les permissions en scopes Passport
+        $scopes = [];
+        foreach ($permissions as $permission) {
+            $scopes[] = str_replace(':', '-', $permission);
+        }
+
+        return $scopes;
     }
 }
