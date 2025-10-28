@@ -21,26 +21,23 @@ Route::prefix('oauth')->group(function () {
     Route::post('/authorize', [App\Http\Controllers\OAuthController::class, 'authorizeCodeGrant']);
 });
 
-// Use Passport's built-in token endpoint for standard OAuth flows
-Route::post('/oauth/token', '\Laravel\Passport\Http\Controllers\AccessTokenController@issueToken');
-
 // OAuth 2.0 Client Management (Admin only)
-Route::middleware(['auth', 'logging'])->prefix('v1/oauth')->group(function () {
+Route::middleware(['auth:api', 'logging'])->prefix('v1/oauth')->group(function () {
     Route::apiResource('clients', App\Http\Controllers\OAuthClientController::class);
 });
 
 // Auth routes (Password Grant)
 Route::prefix('v1')->group(function () {
-    Route::post('/login', [App\Http\Controllers\AuthController::class, 'login']);
-    Route::post('/refresh', [App\Http\Controllers\AuthController::class, 'refresh']);
+    Route::post('/auth/login', [App\Http\Controllers\AuthController::class, 'login']);
+    Route::post('/auth/refresh', [App\Http\Controllers\AuthController::class, 'refresh']);
     Route::middleware(['auth:api', 'logging'])->group(function () {
-        Route::post('/logout', [App\Http\Controllers\AuthController::class, 'logout']);
-        Route::get('/user', [App\Http\Controllers\AuthController::class, 'user']);
+        Route::post('/auth/logout', [App\Http\Controllers\AuthController::class, 'logout']);
+        Route::get('/auth/me', [App\Http\Controllers\AuthController::class, 'user']);
     });
 });
 
 // API v1 routes
-Route::prefix('v1')->middleware(['auth', 'logging'])->group(function () {
+Route::prefix('v1')->middleware(['auth:api', 'logging'])->group(function () {
     /**
      * Lister tous les comptes
      *
@@ -94,6 +91,15 @@ Route::prefix('v1')->middleware(['auth', 'logging'])->group(function () {
      */
     Route::post('/comptes/{compte}/debloquer', [App\Http\Controllers\CompteController::class, 'debloquer'])
         ->name('comptes.debloquer');
+
+    /**
+     * Supprimer un compte (soft delete)
+     *
+     * Admin peut supprimer n'importe quel compte
+     * Client peut supprimer ses propres comptes
+     */
+    Route::delete('/comptes/{compte}', [App\Http\Controllers\CompteController::class, 'destroy'])
+        ->name('comptes.destroy');
 
     /**
      * Créer un nouveau compte

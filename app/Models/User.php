@@ -81,7 +81,7 @@ class User extends Authenticatable
     /**
      * Obtenir les permissions de l'utilisateur selon son rôle
      */
-    private function getPermissions(): array
+    public function getPermissions(): array
     {
         $permissions = [];
 

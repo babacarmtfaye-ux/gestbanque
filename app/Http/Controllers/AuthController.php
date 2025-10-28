@@ -11,22 +11,9 @@ use Laravel\Passport\HasApiTokens;
 use App\Models\User;
 
 /**
- * @OA\Info(
- *     title="API Gestion de Banque - Authentification",
- *     version="1.0.0",
- *     description="API d'authentification pour la gestion des comptes bancaires"
- * )
- *
- * @OA\Server(
- *     url="http://localhost:8000/api/v1",
- *     description="Serveur de développement"
- * )
- *
- * @OA\SecurityScheme(
- *     securityScheme="bearerAuth",
- *     type="http",
- *     scheme="bearer",
- *     bearerFormat="JWT"
+ * @OA\Tag(
+ *     name="Authentification",
+ *     description="Endpoints d'authentification et gestion des tokens"
  * )
  */
 class AuthController extends Controller
@@ -116,12 +103,11 @@ class AuthController extends Controller
 
         $user = Auth::user();
 
-        // Créer le token d'accès avec les scopes appropriés
-        $scopes = $this->getUserScopes($user);
-        $token = $user->createToken('API Token', $scopes);
+        // Créer le token d'accès sans scopes pour simplifier
+        $token = $user->createToken('API Token');
 
         // Créer le refresh token
-        $refreshToken = $user->createToken('Refresh Token', ['refresh-token']);
+        $refreshToken = $user->createToken('Refresh Token');
 
         // Stocker le token dans les cookies
         $cookie = Cookie::make(
@@ -251,11 +237,10 @@ class AuthController extends Controller
         $request->user()->token()->revoke();
 
         // Créer un nouveau token d'accès
-        $scopes = $this->getUserScopes($user);
-        $token = $user->createToken('API Token', $scopes);
+        $token = $user->createToken('API Token');
 
         // Créer un nouveau refresh token
-        $refreshToken = $user->createToken('Refresh Token', ['refresh-token']);
+        $refreshToken = $user->createToken('Refresh Token');
 
         // Mettre à jour le cookie
         $cookie = Cookie::make(

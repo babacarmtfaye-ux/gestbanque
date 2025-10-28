@@ -9,15 +9,9 @@ use Laravel\Passport\Client;
 use Laravel\Passport\Token;
 
 /**
- * @OA\Info(
- *     title="GestBanque OAuth 2.0 API",
- *     version="1.0.0",
- *     description="API OAuth 2.0 pour GestBanque"
- * )
- *
- * @OA\Server(
- *     url="http://localhost:8000",
- *     description="Serveur de développement"
+ * @OA\Tag(
+ *     name="OAuth 2.0",
+ *     description="Endpoints OAuth 2.0 pour l'authentification"
  * )
  */
 class OAuthController extends Controller

@@ -7,10 +7,9 @@ use Illuminate\Http\Request;
 use Laravel\Passport\Client;
 
 /**
- * @OA\Info(
- *     title="GestBanque OAuth Client Management API",
- *     version="1.0.0",
- *     description="API de gestion des clients OAuth 2.0"
+ * @OA\Tag(
+ *     name="OAuth Clients",
+ *     description="Gestion des clients OAuth 2.0"
  * )
  */
 class OAuthClientController extends Controller

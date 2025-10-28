@@ -53,19 +53,25 @@ class AuthTest extends TestCase
      */
     public function test_user_can_login_successfully()
     {
-        $response = $this->postJson('/api/v1/login', [
+        $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'test@example.com',
             'password' => 'password123',
         ]);
 
         $response->assertStatus(200)
                 ->assertJsonStructure([
+                    'success',
                     'message',
-                    'token',
-                    'user'
+                    'data' => [
+                        'token',
+                        'refresh_token',
+                        'token_type',
+                        'expires_in',
+                        'user'
+                    ]
                 ]);
 
-        $accessToken = $response->json('token');
+        $accessToken = $response->json('data.token');
         $this->assertNotNull($accessToken);
     }
 
@@ -96,33 +102,31 @@ class AuthTest extends TestCase
     public function test_user_can_refresh_token()
     {
         $user = User::factory()->create([
-            'email' => 'test@example.com',
+            'email' => 'refresh@example.com',
             'password' => Hash::make('password123'),
             'role' => 'client',
         ]);
 
         // Se connecter d'abord via OAuth
-        $response = $this->postJson('/api/v1/login', [
-            'email' => 'test@example.com',
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'refresh@example.com',
             'password' => 'password123',
         ]);
 
-        $refreshToken = $response->json('refresh_token');
+        $accessToken = $response->json('data.token');
+        $refreshToken = $response->json('data.refresh_token');
 
         // Rafraîchir le token via l'API
         $refreshResponse = $this->withHeader('Authorization', 'Bearer ' . $accessToken)
-                                ->postJson('/api/v1/refresh', [
-                                    'refresh_token' => 'dummy_refresh_token' // Simulé pour le test
-                                ]);
-
-        $newAccessToken = $refreshResponse->json('data.access_token');
+                                ->postJson('/api/v1/auth/refresh');
 
         $refreshResponse->assertStatus(200)
                 ->assertJsonStructure([
                     'success',
                     'message',
                     'data' => [
-                        'access_token',
+                        'token',
+                        'refresh_token',
                         'token_type',
                         'expires_in'
                     ]
@@ -142,22 +146,22 @@ class AuthTest extends TestCase
     public function test_user_can_logout()
     {
         $user = User::factory()->create([
-            'email' => 'test@example.com',
+            'email' => 'logout@example.com',
             'password' => Hash::make('password123'),
             'role' => 'client',
         ]);
 
         // Se connecter via l'API
-        $loginResponse = $this->postJson('/api/v1/login', [
-            'email' => 'test@example.com',
+        $loginResponse = $this->postJson('/api/v1/auth/login', [
+            'email' => 'logout@example.com',
             'password' => 'password123',
         ]);
 
-        $accessToken = $loginResponse->json('data.access_token');
+        $accessToken = $loginResponse->json('data.token');
 
         // Se déconnecter
         $response = $this->withHeader('Authorization', 'Bearer ' . $accessToken)
-                         ->postJson('/api/v1/logout');
+                         ->postJson('/api/v1/auth/logout');
 
         $response->assertStatus(200)
                 ->assertJson([
@@ -188,17 +192,17 @@ class AuthTest extends TestCase
     public function test_authenticated_user_can_access_protected_route()
     {
         $user = User::factory()->create([
-            'email' => 'test@example.com',
+            'email' => 'protected@example.com',
             'password' => Hash::make('password123'),
             'role' => 'admin',
         ]);
 
-        $loginResponse = $this->postJson('/api/v1/login', [
-            'email' => 'test@example.com',
+        $loginResponse = $this->postJson('/api/v1/auth/login', [
+            'email' => 'protected@example.com',
             'password' => 'password123',
         ]);
 
-        $accessToken = $loginResponse->json('data.access_token');
+        $accessToken = $loginResponse->json('data.token');
 
         $response = $this->withHeader('Authorization', 'Bearer ' . $accessToken)
                         ->getJson('/api/v1/comptes');
@@ -213,17 +217,17 @@ class AuthTest extends TestCase
     {
         // Test pour un admin
         $admin = User::factory()->create([
-            'email' => 'admin@example.com',
+            'email' => 'admin_scopes@example.com',
             'password' => Hash::make('password123'),
             'role' => 'admin',
         ]);
 
-        $adminLogin = $this->postJson('/api/v1/login', [
-            'email' => 'admin@example.com',
+        $adminLogin = $this->postJson('/api/v1/auth/login', [
+            'email' => 'admin_scopes@example.com',
             'password' => 'password123',
         ]);
 
-        $adminToken = $adminLogin->json('data.access_token');
+        $adminToken = $adminLogin->json('data.token');
 
         // Vérifier que l'admin peut accéder aux comptes
         $response = $this->withHeader('Authorization', 'Bearer ' . $adminToken)
@@ -233,17 +237,17 @@ class AuthTest extends TestCase
 
         // Test pour un client
         $client = User::factory()->create([
-            'email' => 'client@example.com',
+            'email' => 'client_scopes@example.com',
             'password' => Hash::make('password123'),
             'role' => 'client',
         ]);
 
-        $clientLogin = $this->postJson('/api/v1/login', [
-            'email' => 'client@example.com',
+        $clientLogin = $this->postJson('/api/v1/auth/login', [
+            'email' => 'client_scopes@example.com',
             'password' => 'password123',
         ]);
 
-        $clientToken = $clientLogin->json('data.access_token');
+        $clientToken = $clientLogin->json('data.token');
 
         // Le client devrait avoir accès limité selon ses scopes
         $response = $this->withHeader('Authorization', 'Bearer ' . $clientToken)
