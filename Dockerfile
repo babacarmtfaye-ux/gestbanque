@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
     libpq-dev \
@@ -22,13 +24,14 @@ RUN apt-get update && apt-get install -y \
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo_pgsql mbstring exif pcntl bcmath gd
+RUN docker-php-ext-install pdo pdo_pgsql mbstring exif pcntl bcmath gd
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Copy existing application directory contents
 COPY . /var/www/html
+WORKDIR /var/www/html
 
 # Copy existing application directory permissions
 COPY --chown=www-data:www-data . /var/www/html
@@ -50,46 +53,21 @@ RUN chown -R www-data:www-data /var/www/html \
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
-# Configure Apache
-RUN echo '<VirtualHost *:80>\n\
-    DocumentRoot /var/www/html/public\n\
-    <Directory /var/www/html/public>\n\
-        AllowOverride All\n\
-        Require all granted\n\
-    </Directory>\n\
-    ErrorLog ${APACHE_LOG_DIR}/error.log\n\
-    CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
-</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+# Configure Apache document root
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
 # Expose port 80
 EXPOSE 80
 
-# Create startup script
-RUN echo '#!/bin/bash\n\
-# Wait for database to be ready\n\
-echo "Waiting for database..."\n\
-until pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USERNAME; do\n\
-    echo "Database is unavailable - sleeping"\n\
-    sleep 2\n\
-done\n\
-echo "Database is ready!"\n\
-\n\
-# Run migrations\n\
-php artisan migrate --force\n\
-\n\
-# Seed database\n\
-php artisan db:seed --force\n\
-\n\
-# Clear and cache config\n\
-php artisan config:cache\n\
-php artisan route:cache\n\
-php artisan view:cache\n\
-\n\
-# Start Apache\n\
-apache2-foreground' > /usr/local/bin/start.sh
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-RUN chmod +x /usr/local/bin/start.sh
+# Expose port
+EXPOSE 80
 
-# Start command
-CMD ["/usr/local/bin/start.sh"]
-
+# Set entrypoint
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["apache2-foreground"]
