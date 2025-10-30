@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: gestbanque-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_KEY
+        generateValue: true
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: gestbanque-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: gestbanque-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: gestbanque-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: gestbanque-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: gestbanque-db
+          property: password
+
+databases:
+  - name: gestbanque-db
+    databaseName: gestbanque
+    user: gestbanque_user
+    plan: free
