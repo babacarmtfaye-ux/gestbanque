@@ -32,6 +32,7 @@ return [
                  * File name of the generated json documentation file
                  */
                 'docs_json' => 'api-docs.json',
+                'docs_folder' => 'api-docs',
 
                 /*
                  * File name of the generated YAML documentation file

@@ -29,9 +29,34 @@ class ArchiveExpiredBlockedAccounts implements ShouldQueue
     {
         Log::info('Starting ArchiveExpiredBlockedAccounts job');
 
-        // Trouver tous les comptes bloqués dont la date de déblocage prévue est dépassée
+        $now = now();
+        $processedCount = 0;
+
+        // 1. Activer les blocages programmés dont la date de début est atteinte
+        $scheduledBlocks = Compte::where('statut', 'actif')
+            ->whereNotNull('metadata->dateDebutBlocageProgramme')
+            ->where('metadata->dateDebutBlocageProgramme', '<=', $now)
+            ->where('metadata->blocageProgramme', true)
+            ->get();
+
+        foreach ($scheduledBlocks as $compte) {
+            $compte->update([
+                'statut' => 'bloque',
+                'dateBlocage' => $now,
+                'metadata' => array_merge($compte->metadata ?? [], [
+                    'derniereModification' => $now,
+                    'version' => ($compte->metadata['version'] ?? 1) + 1,
+                    'blocageActive' => true,
+                ])
+            ]);
+
+            $processedCount++;
+            Log::info("Activated scheduled block for account: {$compte->numeroCompte}");
+        }
+
+        // 2. Archiver les comptes bloqués dont la date de déblocage prévue est dépassée
         $expiredBlockedAccounts = Compte::where('statut', 'bloque')
-            ->where('dateDeblocagePrevue', '<', now())
+            ->where('dateDeblocagePrevue', '<', $now)
             ->get();
 
         $archivedCount = 0;
@@ -41,7 +66,7 @@ class ArchiveExpiredBlockedAccounts implements ShouldQueue
             $compte->update([
                 'statut' => 'archive',
                 'metadata' => array_merge($compte->metadata ?? [], [
-                    'archivedAt' => now(),
+                    'archivedAt' => $now,
                     'archivedReason' => 'Blocage expiré automatiquement',
                     'version' => ($compte->metadata['version'] ?? 1) + 1,
                 ])
@@ -49,13 +74,13 @@ class ArchiveExpiredBlockedAccounts implements ShouldQueue
 
             // Archiver les transactions associées
             $compte->transactions()->update([
-                'metadata' => \DB::raw("JSON_SET(COALESCE(metadata, '{}'), '$.archived', true, '$.archivedAt', '" . now() . "')")
+                'metadata' => \DB::raw("jsonb_set(COALESCE(metadata, '{}'), '{archived}', 'true', true) || jsonb_set(COALESCE(metadata, '{}'), '{archivedAt}', '\"' || '" . $now . "' || '\"', true)")
             ]);
 
             $archivedCount++;
-            Log::info("Archived account: {$compte->numeroCompte}");
+            Log::info("Archived expired blocked account: {$compte->numeroCompte}");
         }
 
-        Log::info("ArchiveExpiredBlockedAccounts job completed. Archived {$archivedCount} accounts.");
+        Log::info("ArchiveExpiredBlockedAccounts job completed. Activated {$processedCount} scheduled blocks, archived {$archivedCount} expired accounts.");
     }
 }

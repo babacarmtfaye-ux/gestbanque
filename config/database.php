@@ -76,6 +76,10 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => 'prefer',
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_TIMEOUT => 30, // Timeout de connexion en secondes
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            ]) : [],
         ],
 
         'sqlsrv' => [

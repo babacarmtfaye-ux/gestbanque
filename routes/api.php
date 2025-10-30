@@ -1,17 +1,23 @@
 <?php
 
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\CompteController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes
+| API Routes - Niveau 3 de Richardson (HATEOAS)
 |--------------------------------------------------------------------------
 |
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
+| Cette API implémente le modèle de maturité de Richardson niveau 3 :
+| - Niveau 0: HTTP comme tunnel RPC
+| - Niveau 1: Utilisation des ressources (URI)
+| - Niveau 2: Utilisation des méthodes HTTP (GET, POST, PUT, DELETE)
+| - Niveau 3: Hypermedia Controls (HATEOAS - Hypermedia As The Engine Of Application State)
+|
+| HATEOAS permet aux clients de découvrir dynamiquement les actions disponibles
+| via des liens hypermedia dans les réponses JSON.
 |
 */
 
@@ -36,76 +42,193 @@ Route::prefix('v1')->group(function () {
     });
 });
 
-// API v1 routes
+// API v1 routes - Niveau 3 Richardson avec HATEOAS
 Route::prefix('v1')->middleware(['auth:api', 'logging'])->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ressources Utilisateurs (Users)
+    |--------------------------------------------------------------------------
+    | Niveau 1 Richardson: Utilisation d'URI pour identifier les ressources
+    | Niveau 2 Richardson: Utilisation correcte des méthodes HTTP
+    | Niveau 3 Richardson: HATEOAS avec liens hypermedia
+    */
+
+    /**
+     * Lister tous les utilisateurs
+     * GET /v1/users
+     *
+     * Niveau 2: GET pour récupérer une collection
+     * Niveau 3: Liens vers création, pagination, filtres
+     */
+    Route::get('/users', [UserController::class, 'index'])
+        ->name('users.index');
+
+    /**
+     * Créer un nouvel utilisateur
+     * POST /v1/users
+     *
+     * Niveau 2: POST pour créer une ressource
+     */
+    Route::post('/users', [UserController::class, 'store'])
+        ->name('users.store');
+
+    /**
+     * Récupérer un utilisateur spécifique
+     * GET /v1/users/{user}
+     *
+     * Niveau 2: GET pour récupérer une ressource unique
+     * Niveau 3: Liens vers modification, suppression, comptes associés
+     */
+    Route::get('/users/{user}', [UserController::class, 'show'])
+        ->name('users.show');
+
+    /**
+     * Mettre à jour un utilisateur
+     * PUT /v1/users/{user}
+     *
+     * Niveau 2: PUT pour mettre à jour complètement une ressource
+     */
+    Route::put('/users/{user}', [UserController::class, 'update'])
+        ->name('users.update');
+
+    /**
+     * Modifier partiellement un utilisateur
+     * PATCH /v1/users/{user}
+     *
+     * Niveau 2: PATCH pour modification partielle
+     */
+    Route::patch('/users/{user}', [UserController::class, 'update'])
+        ->name('users.patch');
+
+    /**
+     * Supprimer un utilisateur
+     * DELETE /v1/users/{user}
+     *
+     * Niveau 2: DELETE pour supprimer une ressource
+     */
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])
+        ->name('users.destroy');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ressources Comptes (Accounts) - Hiérarchie URI
+    |--------------------------------------------------------------------------
+    | Niveau 1 Richardson: URI hiérarchiques (/users/{id}/comptes)
+    | Niveau 2 Richardson: Méthodes HTTP appropriées
+    | Niveau 3 Richardson: HATEOAS avec navigation entre ressources liées
+    */
+
     /**
      * Lister tous les comptes
+     * GET /v1/comptes
      *
-     * Admin peut récupérer la liste de tous les comptes
-     * Client peut récupérer la liste de ses comptes
-     *
-     * Query Parameters:
-     * - page: Numéro de page (default: 1)
-     * - limit: Nombre d'éléments par page (default: 10, max: 100)
-     * - type: Filtrer par type (epargne, cheque)
-     * - statut: Filtrer par statut (actif, bloque, ferme)
-     * - search: Recherche par titulaire ou numéro
-     * - sort: Tri (dateCreation, solde, titulaire)
-     * - order: Ordre (asc, desc)
+     * Niveau 2: GET pour collection
+     * Niveau 3: Liens de pagination, filtres, tri
      */
-    Route::get('/comptes', [App\Http\Controllers\CompteController::class, 'index'])
+    Route::get('/comptes', [CompteController::class, 'index'])
         ->name('comptes.index');
 
     /**
-     * Récupérer un compte spécifique
+     * Créer un nouveau compte
+     * POST /v1/comptes
      *
-     * Admin peut récupérer un compte par ID
-     * Client peut récupérer un de ses comptes par ID
+     * Niveau 2: POST pour création
      */
-    Route::get('/comptes/{compte}', [App\Http\Controllers\CompteController::class, 'show'])
+    Route::post('/comptes', [CompteController::class, 'store'])
+        ->name('comptes.store');
+
+    /**
+     * Récupérer un compte spécifique
+     * GET /v1/comptes/{compte}
+     *
+     * Niveau 2: GET pour ressource unique
+     * Niveau 3: Liens vers propriétaire, transactions, actions disponibles
+     */
+    Route::get('/comptes/{compte}', [CompteController::class, 'show'])
         ->name('comptes.show');
 
     /**
-     * Mettre à jour les informations du client
-     *
-     * Admin peut modifier n'importe quel compte
-     * Client peut modifier ses propres comptes
+     * Mettre à jour un compte
+     * PUT /v1/comptes/{compte}
      */
-    Route::patch('/comptes/{compte}', [App\Http\Controllers\CompteController::class, 'update'])
+    Route::put('/comptes/{compte}', [CompteController::class, 'update'])
         ->name('comptes.update');
 
     /**
-     * Bloquer un compte
+     * Modifier partiellement un compte
+     * PATCH /v1/comptes/{compte}
      *
-     * Admin peut bloquer n'importe quel compte
-     * Client peut bloquer ses propres comptes
+     * Niveau 2: PATCH pour modification partielle
      */
-    Route::post('/comptes/{compte}/bloquer', [App\Http\Controllers\CompteController::class, 'bloquer'])
+    Route::patch('/comptes/{compte}', [CompteController::class, 'update'])
+        ->name('comptes.patch');
+
+    /**
+     * Supprimer un compte
+     * DELETE /v1/comptes/{compte}
+     *
+     * Niveau 2: DELETE pour suppression
+     * Réservé aux administrateurs uniquement
+     */
+    Route::delete('/comptes/{compte}', [CompteController::class, 'destroy'])
+        ->middleware('role:admin')
+        ->name('comptes.destroy');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Relations hiérarchiques - Comptes d'un utilisateur
+    |--------------------------------------------------------------------------
+    | Niveau 1 Richardson: URI hiérarchiques pour relations
+    | Exemple: /users/123/comptes
+    */
+
+    /**
+     * Lister les comptes d'un utilisateur
+     * GET /v1/users/{user}/comptes
+     *
+     * Niveau 1: URI hiérarchique montrant la relation
+     * Niveau 3: Navigation entre ressources liées
+     */
+    Route::get('/users/{user}/comptes', [UserController::class, 'comptes'])
+        ->name('users.comptes');
+
+    /**
+     * Créer un compte pour un utilisateur
+     * POST /v1/users/{user}/comptes
+     *
+     * Niveau 1: URI hiérarchique
+     * Niveau 2: POST pour création dans collection subordonnée
+     */
+    Route::post('/users/{user}/comptes', [UserController::class, 'creerCompte'])
+        ->name('users.comptes.store');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Actions sur les comptes (non-ressources)
+    |--------------------------------------------------------------------------
+    | Ces routes représentent des actions sur les comptes plutôt que des ressources CRUD
+    */
+
+    /**
+     * Bloquer un compte
+     * POST /v1/comptes/{compte}/bloquer
+     *
+     * Niveau 2: POST pour action (non-idempotent)
+     * Réservé aux administrateurs uniquement
+     */
+    Route::post('/comptes/{compte}/bloquer', [CompteController::class, 'bloquer'])
+        ->middleware('role:admin')
         ->name('comptes.bloquer');
 
     /**
-     * Débloquer un compte
+     * Débloquer un compte (réservé au système automatique)
+     * POST /v1/comptes/{compte}/debloquer
      *
-     * Admin peut débloquer n'importe quel compte
-     * Client peut débloquer ses propres comptes
+     * Niveau 2: POST pour action
+     * Réservé aux administrateurs uniquement - déblocage manuel non autorisé
      */
-    Route::post('/comptes/{compte}/debloquer', [App\Http\Controllers\CompteController::class, 'debloquer'])
+    Route::post('/comptes/{compte}/debloquer', [CompteController::class, 'debloquer'])
+        ->middleware('role:admin')
         ->name('comptes.debloquer');
-
-    /**
-     * Supprimer un compte (soft delete)
-     *
-     * Admin peut supprimer n'importe quel compte
-     * Client peut supprimer ses propres comptes
-     */
-    Route::delete('/comptes/{compte}', [App\Http\Controllers\CompteController::class, 'destroy'])
-        ->name('comptes.destroy');
-
-    /**
-     * Créer un nouveau compte
-     *
-     * Crée un compte bancaire avec vérification client automatique
-     */
-    Route::post('/comptes', [App\Http\Controllers\CompteController::class, 'store'])
-        ->name('comptes.store');
 });

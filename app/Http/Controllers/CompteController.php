@@ -15,10 +15,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 /**
+ * Contrôleur pour la gestion des comptes - Niveau 3 de Richardson
+ *
+ * Ce contrôleur implémente une API RESTful niveau 3 selon le modèle de maturité de Richardson :
+ * - Niveau 1: Utilisation d'URI pour identifier les ressources (/comptes, /comptes/{id})
+ * - Niveau 2: Utilisation correcte des méthodes HTTP (GET, POST, PUT, PATCH, DELETE)
+ * - Niveau 3: HATEOAS (Hypermedia As The Engine Of Application State)
+ *
+ * HATEOAS permet aux clients de découvrir dynamiquement les actions disponibles
+ * via des liens hypermedia inclus dans les réponses JSON.
+ *
  * @OA\Info(
- *     title="API Gestion de Banque",
+ *     title="API Gestion de Banque - Niveau 3 Richardson",
  *     version="1.0.0",
- *     description="API pour la gestion des comptes bancaires"
+ *     description="API RESTful niveau 3 avec HATEOAS pour la gestion des comptes bancaires"
  * )
  *
  * @OA\Server(
@@ -105,7 +115,7 @@ class CompteController extends Controller
      *                 @OA\Schema(
      *                     @OA\Property(
      *                         property="data",
-     *                         ref="#/components/schemas/ComptesPaginatedResponse"
+     *                         type="array",@OA\Items(type="object")
      *                     )
      *                 )
      *             }
@@ -194,14 +204,27 @@ class CompteController extends Controller
             'last' => $comptes->url($comptes->lastPage()),
         ];
 
-        return $this->successResponse(
-            Messages::COMPTE_LIST_SUCCESS,
-            [
-                'data' => CompteResource::collection($comptes->items()),
-                'pagination' => $pagination,
-                'links' => $links,
-            ]
-        );
+        // Liens HATEOAS (Niveau 3 Richardson)
+        $hateoasLinks = [
+            'self' => $comptes->url($comptes->currentPage()),
+            'first' => $comptes->url(1),
+            'last' => $comptes->url($comptes->lastPage()),
+            'create' => route('comptes.store'), // Lien pour créer un nouveau compte
+        ];
+
+        if ($comptes->hasMorePages()) {
+            $hateoasLinks['next'] = $comptes->nextPageUrl();
+        }
+        if ($comptes->currentPage() > 1) {
+            $hateoasLinks['previous'] = $comptes->previousPageUrl();
+        }
+
+        return response()->json([
+            'message' => 'Liste des comptes récupérée avec succès',
+            'data' => CompteResource::collection($comptes->items()),
+            'pagination' => $pagination,
+            'links' => $hateoasLinks, // HATEOAS - Liens pour découvrir les actions possibles
+        ]);
     }
 
     /**
@@ -230,7 +253,7 @@ class CompteController extends Controller
      *                 @OA\Schema(
      *                     @OA\Property(
      *                         property="data",
-     *                         ref="#/components/schemas/Compte"
+     *                         type="object"
      *                     )
      *                 )
      *             }
@@ -286,10 +309,19 @@ class CompteController extends Controller
             );
         }
 
-        return $this->successResponse(
-            Messages::COMPTE_RETRIEVED_SUCCESS,
-            new CompteResource($compte)
-        );
+        return response()->json([
+            'message' => 'Détails du compte récupérés avec succès',
+            'data' => new CompteResource($compte),
+            'links' => [
+                'self' => route('comptes.show', $compte->id),
+                'collection' => route('comptes.index'),
+                'update' => route('comptes.update', $compte->id),
+                'delete' => route('comptes.destroy', $compte->id),
+                'user' => route('users.show', $compte->user_id), // Lien vers le propriétaire
+                'bloquer' => route('comptes.bloquer', $compte->id), // Lien pour bloquer
+                'debloquer' => route('comptes.debloquer', $compte->id), // Lien pour débloquer
+            ],
+        ]);
     }
 
     /**
@@ -331,7 +363,7 @@ class CompteController extends Controller
      *                 @OA\Schema(
      *                     @OA\Property(
      *                         property="data",
-     *                         ref="#/components/schemas/Compte"
+     *                         type="object"
      *                     )
      *                 )
      *             }
@@ -397,11 +429,17 @@ class CompteController extends Controller
                 'description' => 'Solde initial',
             ]);
 
-            return $this->successResponse(
-                Messages::COMPTE_CREATED_SUCCESS,
-                new CompteResource($compte),
-                201
-            );
+            return response()->json([
+                'message' => 'Compte créé avec succès',
+                'data' => new CompteResource($compte),
+                'links' => [
+                    'self' => route('comptes.show', $compte->id),
+                    'collection' => route('comptes.index'),
+                    'user' => route('users.show', $compte->user_id),
+                    'update' => route('comptes.update', $compte->id),
+                    'delete' => route('comptes.destroy', $compte->id),
+                ],
+            ], 201);
 
         } catch (\Exception $e) {
             return $this->errorResponse(
@@ -452,7 +490,7 @@ class CompteController extends Controller
      *                 @OA\Schema(
      *                     @OA\Property(
      *                         property="data",
-     *                         ref="#/components/schemas/Compte"
+     *                         type="object"
      *                     )
      *                 )
      *             }
@@ -550,10 +588,15 @@ class CompteController extends Controller
                 ])
             ]);
 
-            return $this->successResponse(
-                Messages::COMPTE_UPDATED_SUCCESS,
-                new CompteResource($compte->fresh())
-            );
+            return response()->json([
+                'message' => 'Compte mis à jour avec succès',
+                'data' => new CompteResource($compte->fresh()),
+                'links' => [
+                    'self' => route('comptes.show', $compte->id),
+                    'collection' => route('comptes.index'),
+                    'user' => route('users.show', $compte->user_id),
+                ],
+            ]);
 
         } catch (\Exception $e) {
             return $this->errorResponse(
@@ -684,31 +727,52 @@ class CompteController extends Controller
         try {
             $now = now();
 
-            // Calculer la date de déblocage prévue
-            $dateDeblocagePrevue = $this->calculateDeblocageDate($now, $request->duree, $request->unite);
+            // Déterminer la date de début de blocage
+            $dateDebutBlocage = $request->has('dateDebutBlocage')
+                ? \Carbon\Carbon::parse($request->dateDebutBlocage)
+                : $now;
 
-            // Bloquer le compte
+            // Calculer la date de déblocage prévue à partir de la date de début
+            $dateDeblocagePrevue = $this->calculateDeblocageDate($dateDebutBlocage, $request->duree, $request->unite);
+
+            // Si la date de début est dans le futur, le compte reste actif jusqu'à cette date
+            $statut = $dateDebutBlocage->isFuture() ? 'actif' : 'bloque';
+
+            // Bloquer le compte (immédiatement ou programmé)
             $compte->update([
-                'statut' => 'bloque',
+                'statut' => $statut,
                 'motifBlocage' => $request->motif,
-                'dateBlocage' => $now,
+                'dateBlocage' => $dateDebutBlocage->isFuture() ? null : $dateDebutBlocage,
                 'dateDeblocagePrevue' => $dateDeblocagePrevue,
                 'metadata' => array_merge($compte->metadata ?? [], [
                     'derniereModification' => $now,
                     'version' => ($compte->metadata['version'] ?? 1) + 1,
+                    'dateDebutBlocageProgramme' => $dateDebutBlocage->toISOString(),
+                    'blocageProgramme' => $dateDebutBlocage->isFuture(),
                 ])
             ]);
 
-            return $this->successResponse(
-                Messages::COMPTE_BLOQUE_SUCCESS,
-                [
+            $message = $dateDebutBlocage->isFuture()
+                ? 'Blocage du compte programmé avec succès'
+                : 'Compte bloqué avec succès';
+
+            return response()->json([
+                'message' => $message,
+                'data' => [
                     'id' => $compte->id,
                     'statut' => $compte->statut,
                     'motifBlocage' => $compte->motifBlocage,
-                    'dateBlocage' => $compte->dateBlocage->toISOString(),
+                    'dateDebutBlocage' => $dateDebutBlocage->toISOString(),
+                    'dateBlocage' => $compte->dateBlocage?->toISOString(),
                     'dateDeblocagePrevue' => $compte->dateDeblocagePrevue->toISOString(),
-                ]
-            );
+                    'blocageProgramme' => $dateDebutBlocage->isFuture(),
+                ],
+                'links' => [
+                    'self' => route('comptes.show', $compte->id),
+                    'collection' => route('comptes.index'),
+                    'debloquer' => route('comptes.debloquer', $compte->id), // Lien pour débloquer
+                ],
+            ]);
 
         } catch (\Exception $e) {
             return $this->errorResponse(
@@ -812,56 +876,12 @@ class CompteController extends Controller
      */
     public function debloquer(DebloquerCompteRequest $request, Compte $compte)
     {
-        $user = Auth::user();
-
-        // Vérifier les autorisations
-        if ($user->role !== 'admin' && $compte->user_id !== $user->id) {
-            return $this->errorResponse(
-                'Accès interdit à ce compte.',
-                [],
-                403
-            );
-        }
-
-        // Vérifier que le compte est bloqué
-        if ($compte->statut !== 'bloque') {
-            return $this->errorResponse(
-                'Seuls les comptes bloqués peuvent être débloqués.',
-                ['statut' => $compte->statut],
-                400
-            );
-        }
-
-        try {
-            $now = now();
-
-            // Débloquer le compte
-            $compte->update([
-                'statut' => 'actif',
-                'dateDeblocage' => $now,
-                'metadata' => array_merge($compte->metadata ?? [], [
-                    'derniereModification' => $now,
-                    'version' => ($compte->metadata['version'] ?? 1) + 1,
-                    'motifDeblocage' => $request->motif,
-                ])
-            ]);
-
-            return $this->successResponse(
-                Messages::COMPTE_DEBLOQUE_SUCCESS,
-                [
-                    'id' => $compte->id,
-                    'statut' => $compte->statut,
-                    'dateDeblocage' => $compte->dateDeblocage->toISOString(),
-                ]
-            );
-
-        } catch (\Exception $e) {
-            return $this->errorResponse(
-                Messages::COMPTE_DEBLOCAGE_ERROR,
-                ['error' => $e->getMessage()],
-                500
-            );
-        }
+        // Le déblocage manuel n'est pas autorisé - seulement le système automatique peut débloquer
+        return $this->errorResponse(
+            'Le déblocage manuel des comptes n\'est pas autorisé. Le système automatique gère les déblocages et désarchivages.',
+            [],
+            403
+        );
     }
 
     /**
@@ -988,15 +1008,19 @@ class CompteController extends Controller
             // Soft delete via Eloquent (marque deleted_at)
             $compte->delete();
 
-            return $this->successResponse(
-                Messages::COMPTE_DELETED_SUCCESS,
-                [
+            return response()->json([
+                'message' => 'Compte supprimé avec succès',
+                'data' => [
                     'id' => $compte->id,
                     'numeroCompte' => $compte->numeroCompte,
                     'statut' => $compte->statut,
                     'dateFermeture' => $compte->dateFermeture->toISOString(),
-                ]
-            );
+                ],
+                'links' => [
+                    'collection' => route('comptes.index'),
+                    'user' => route('users.show', $compte->user_id),
+                ],
+            ]);
 
         } catch (\Exception $e) {
             return $this->errorResponse(

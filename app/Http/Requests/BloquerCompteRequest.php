@@ -25,6 +25,7 @@ class BloquerCompteRequest extends FormRequest
             'motif' => ['required', 'string', 'max:500'],
             'duree' => ['required', 'integer', 'min:1', 'max:365'],
             'unite' => ['required', 'string', 'in:jours,mois,annees'],
+            'dateDebutBlocage' => ['nullable', 'date', 'after_or_equal:now'],
         ];
     }
 
@@ -43,6 +44,8 @@ class BloquerCompteRequest extends FormRequest
             'duree.max' => 'La durée ne peut pas dépasser 365.',
             'unite.required' => 'L\'unité de temps est obligatoire.',
             'unite.in' => 'L\'unité doit être jours, mois ou annees.',
+            'dateDebutBlocage.date' => 'La date de début de blocage doit être une date valide.',
+            'dateDebutBlocage.after_or_equal' => 'La date de début de blocage doit être maintenant ou dans le futur.',
         ];
     }
 
@@ -55,6 +58,7 @@ class BloquerCompteRequest extends FormRequest
             'motif' => 'motif de blocage',
             'duree' => 'durée de blocage',
             'unite' => 'unité de temps',
+            'dateDebutBlocage' => 'date de début de blocage',
         ];
     }
 }

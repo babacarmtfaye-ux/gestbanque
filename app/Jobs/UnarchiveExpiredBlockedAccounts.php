@@ -56,7 +56,7 @@ class UnarchiveExpiredBlockedAccounts implements ShouldQueue
 
             // Désarchiver les transactions associées
             $compte->transactions()->update([
-                'metadata' => \DB::raw("JSON_REMOVE(JSON_SET(COALESCE(metadata, '{}'), '$.unarchivedAt', '" . now() . "'), '$.archived', '$.archivedAt')")
+                'metadata' => \DB::raw("jsonb_set(COALESCE(metadata, '{}'), '{unarchivedAt}', '\"' || '" . now() . "' || '\"', true) - 'archived' - 'archivedAt'")
             ]);
 
             $unarchivedCount++;
