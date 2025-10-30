@@ -7,7 +7,7 @@ return [
             'api' => [
                 'title' => 'API Gestion de Banque',
                 'description' => 'API complète pour la gestion des comptes bancaires avec authentification OAuth2',
-                'version' => '1.8.0',
+                'version' => '1.8.1',
             ],
 
             'routes' => [
@@ -95,7 +95,7 @@ return [
             /*
              * Edit to set the api's base path
              */
-            'base' => env('L5_SWAGGER_BASE_PATH', null),
+            'base' => env('L5_SWAGGER_BASE_PATH', env('APP_URL')),
 
             /*
              * Absolute path to directories that should be excluded from scanning
