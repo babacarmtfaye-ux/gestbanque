@@ -4,10 +4,14 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     envVars:
+      - key: APP_NAME
+        value: GestBanque
       - key: APP_ENV
         value: production
       - key: APP_KEY
-        generateValue: true
+        value: base64:Bx5GCsAqLqB73pAUSm5rHBUtaVtZkFSEulF/wFgkkzo=
+      - key: APP_DEBUG
+        value: false
       - key: DB_CONNECTION
         value: pgsql
       - key: DB_HOST
