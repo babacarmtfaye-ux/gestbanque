@@ -12,6 +12,11 @@ services:
         value: base64:Bx5GCsAqLqB73pAUSm5rHBUtaVtZkFSEulF/wFgkkzo=
       - key: APP_DEBUG
         value: false
+      - key: APP_URL
+        fromService:
+          type: web
+          name: gestbanque-api
+          property: host
       - key: DB_CONNECTION
         value: pgsql
       - key: DB_HOST
@@ -34,6 +39,8 @@ services:
         fromDatabase:
           name: gestbanque-db
           property: password
+      - key: L5_SWAGGER_GENERATE_ALWAYS
+        value: false
 
 databases:
   - name: gestbanque-db
