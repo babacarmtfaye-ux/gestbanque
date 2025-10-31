@@ -328,7 +328,7 @@ return [
                 'description' => 'Serveur de développement local',
             ],
             [
-                'url' => env('APP_URL') ? env('APP_URL') . '/api/v1' : 'https://your-render-app.onrender.com/api/v1',
+                'url' => env('APP_URL') ? env('APP_URL') . '/api/v1' : 'https://gestbanque-api.onrender.com/api/v1',
                 'description' => 'Serveur de production Render',
             ],
         ],
