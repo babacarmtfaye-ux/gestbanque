@@ -241,7 +241,7 @@ return [
          * Set this to `true` in development mode so that docs would be regenerated on each request
          * Set this to `false` to disable swagger generation on production
          */
-        'generate_always' => env('L5_SWAGGER_GENERATE_ALWAYS', true),
+        'generate_always' => env('L5_SWAGGER_GENERATE_ALWAYS', env('APP_ENV') === 'local'),
 
         /*
          * Set this to `true` to generate a copy of documentation in yaml format
@@ -317,6 +317,20 @@ return [
          */
         'constants' => [
             'L5_SWAGGER_CONST_HOST' => env('L5_SWAGGER_CONST_HOST', 'http://my-default-host.com'),
+        ],
+
+        /*
+         * Servers configuration for different environments
+         */
+        'servers' => [
+            [
+                'url' => 'http://localhost:8000/api/v1',
+                'description' => 'Serveur de développement local',
+            ],
+            [
+                'url' => env('APP_URL') ? env('APP_URL') . '/api/v1' : 'https://your-render-app.onrender.com/api/v1',
+                'description' => 'Serveur de production Render',
+            ],
         ],
     ],
 ];
