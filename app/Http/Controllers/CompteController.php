@@ -33,7 +33,11 @@ use Illuminate\Support\Facades\Auth;
  *
  * @OA\Server(
  *     url="http://localhost:8000/api/v1",
- *     description="Serveur de développement"
+ *     description="Serveur de développement local"
+ * )
+ * @OA\Server(
+ *     url="https://gestbanque-api.onrender.com/api/v1",
+ *     description="Serveur de production Render"
  * )
  *
  * @OA\SecurityScheme(
